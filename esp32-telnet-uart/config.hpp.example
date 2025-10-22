@@ -1,0 +1,4 @@
+#define WIFI_SSID "My_wifi_ssid"
+#define WIFI_PASSWORD "My_wifi_password"
+
+#define TELNET_PORT 23

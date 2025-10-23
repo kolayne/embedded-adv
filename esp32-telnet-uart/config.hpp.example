@@ -2,3 +2,7 @@
 #define WIFI_PASSWORD "My_wifi_password"
 
 #define TELNET_PORT 23
+
+#define UART_NR 1  // UART number
+#define UART_RX 3  // RX pin
+#define UART_TX 2  // TX pin

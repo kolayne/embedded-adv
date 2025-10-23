@@ -10,7 +10,7 @@
 // | GLOBALS |
 // ===========
 ESPTelnetStream telnet;
-
+HardwareSerial gpSerial(UART_NR);
 
 void die(String error) {
   Serial.println(error);
@@ -95,7 +95,8 @@ bool connectToWiFi(const char* ssid, const char* password, int max_tries = 20, i
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("ESP Telnet Test");
+  gpSerial.begin(115200, SERIAL_8N1, UART_RX, UART_TX);
+  Serial.println("Hello.");
 
   connectToWiFi(WIFI_SSID, WIFI_PASSWORD);
 
@@ -113,11 +114,48 @@ void setup() {
 }
 
 void loop() {
+  unsigned long start = millis(), loop, msg1, msg2;
+
   telnet.loop();
-  if(Serial.available() > 0) {
-    telnet.write(Serial.read());
+
+  loop = millis();
+
+  {
+    uint8_t buf[min(telnet.available(), gpSerial.availableForWrite())];
+    size_t len = telnet.readBytes(buf, sizeof buf);
+    gpSerial.write(buf, len);
+#ifdef VERBOSE
+    if (sizeof buf > 0) {
+      Serial.print("Sent telnet->UART: ");
+      Serial.print(len);
+      if (len < sizeof buf) {
+        Serial.print("; lost ");
+        Serial.println(sizeof buf - len);
+      } else {
+        Serial.println();
+      }
+    }
+#endif
   }
-  if (telnet.available() > 0) {
-    Serial.print((char)telnet.read());
+
+  msg1 = millis();
+
+  {
+    // `telnet.availableForWrite()` is always zero :/
+    uint8_t buf[gpSerial.available()];
+    size_t len = gpSerial.readBytes(buf, sizeof buf);
+    telnet.write(buf, len);
+#ifdef VERBOSE
+    if (sizeof buf > 0) {
+      Serial.print("Sent UART->telnet: ");
+      Serial.print(len);
+      if (len < sizeof buf) {
+        Serial.print("; lost ");
+        Serial.println(sizeof buf - len);
+      } else {
+        Serial.println();
+      }
+    }
+#endif
   }
 }

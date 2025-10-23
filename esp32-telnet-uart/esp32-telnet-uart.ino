@@ -66,9 +66,28 @@ void setupTelnet() {
   }
 }
 
+void onWiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
+#ifdef VERBOSE
+  Serial.print("WiFi event: ");
+  Serial.println(event);
+#endif
+  switch (event) {
+    case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+    case ARDUINO_EVENT_WIFI_STA_LOST_IP:
+      Serial.println("Writing off");
+      analogWrite(WIFI_STATUS_LED_PIN, WIFI_LED_STATUS_OFF);
+      break;
+    case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+    case ARDUINO_EVENT_WIFI_STA_GOT_IP6:
+      Serial.println("Writing on");
+      digitalWrite(WIFI_STATUS_LED_PIN, WIFI_LED_STATUS_ON);
+      break;
+  }
+}
+
 bool connectToWiFi(const char* ssid, const char* password, int max_tries = 20, int pause = 500) {
-  int i = 0;
   WiFi.mode(WIFI_STA);
+  WiFi.onEvent(onWiFiEvent);
   WiFi.disconnect();
   delay(100);
 
@@ -77,11 +96,12 @@ bool connectToWiFi(const char* ssid, const char* password, int max_tries = 20, i
   delay(200);
 #endif
   WiFi.begin(ssid, password);
+  int tries = 0;
   do {
     delay(pause);
     Serial.print(".");
-    i++;
-  } while (!isConnected() && i < max_tries);
+    ++tries;
+  } while (!isConnected() && tries < max_tries);
   WiFi.setAutoReconnect(true);
   WiFi.persistent(true);
 
@@ -97,6 +117,7 @@ void setup() {
   Serial.begin(115200);
   gpSerial.begin(115200, SERIAL_8N1, UART_RX, UART_TX);
   Serial.println("Hello.");
+  digitalWrite(WIFI_STATUS_LED_PIN, WIFI_LED_STATUS_OFF);
 
   connectToWiFi(WIFI_SSID, WIFI_PASSWORD);
 

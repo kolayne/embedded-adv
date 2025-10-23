@@ -115,7 +115,7 @@ bool connectToWiFi(const char* ssid, const char* password, int max_tries = 20, i
 
 void setup() {
   Serial.begin(115200);
-  gpSerial.begin(115200, SERIAL_8N1, UART_RX, UART_TX);
+  gpSerial.begin(115200, SERIAL_8N1, UART_RX_PIN, UART_TX_PIN);
   Serial.println("Hello.");
   digitalWrite(WIFI_STATUS_LED_PIN, WIFI_LED_STATUS_OFF);
 

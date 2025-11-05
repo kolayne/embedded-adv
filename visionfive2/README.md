@@ -2,6 +2,13 @@
 
 Playing around with Visionfive2.
 
+## Using a pre-built distro
+
+Download a pre-built image from [debian.starfivetech.com](https://debian.starfivetech.com/).
+Follow instructions of the official
+[Quick Start Guide](https://doc-en.rvspace.org/VisionFive2/Quick_Start_Guide/)
+to boot the image.
+
 ## Build SDK
 
 Building VisionFive2 SDK in a container.

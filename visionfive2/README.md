@@ -1,6 +1,7 @@
 # Visionfive2
 
-Playing around with Visionfive2.
+This file documents set up of the experiments that I performed
+while playing around with StarFive VisionFive 2.
 
 ## Using a pre-built distro
 

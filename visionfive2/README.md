@@ -83,3 +83,141 @@ Verify the success injection of your code into the image by running (in `VisionF
 $ strings work/visionfive2_fw_payload.img | grep Hello
 # Should display the string containing 'Hello' from your executable
 ```
+
+## Booting via Ethernet
+
+U-boot allows to boot an image that is downloaded from the ethernet.
+
+On your computer, launch a tftp server in the `work/` directory.
+E.g., on my Arch machine with the `tftp-hpa` package:
+```sh
+sudo in.tftpd --ipv4 -L --address 0.0.0.0 --secure work/
+```
+
+<hr>
+
+Boot the board in either flash mode (recommended by the vendor) or with an
+SD card containing OpenSBI and U-Boot.
+
+Connect the board to a router/switch/computer with an ethernet cable.
+
+If you connected the board to a device that is _not_ running a DHCP server
+(e.g., a typical computer), the network must be configured manually.
+On your computer configure an ip address a subnet. E.g., via NetworkManager:
+```sh
+$ nmcli con add id "Wired manual" type eth
+$ nmcli con edit "Wired manual"
+nmcli> set ipv4.method manual
+nmcli> set ipv4.addresses 10.0.0.13/24
+nmcli> save
+nmcli> activate
+```
+Then, in the U-Boot console:
+```sh
+setenv netmask 255.255.255.0
+setenv ipaddr 10.0.0.3
+setenv serverip 10.0.0.13
+```
+Note: the values `3` and `13` in ip addresses are arbitrary. The netmask must correspond
+to the mask set in ipv4.addresses (`/24`). `serverip` must correspond to the address
+set on the server.
+
+If you connected the board to a device that _is_ running a DHCP server
+(e.g., a router), the network will be configured automatically, and you only
+need to set `serverip` to the address of your computer where tftp server is running.
+
+<hr>
+
+Next, in the U-boot console, load the necessary files from tftp into memory.
+
+The standard way to do it is to use the [FIT file](https://docs.u-boot.org/en/v2024.04/usage/fit/source_file_format.html)
+which can be built with the SDK (`make fit`). Load it to the default address
+(stored in the `$loadaddr` environment variable) with `tftpboot $loadaddr image.fit`.
+
+Alternatively, you may separately load the flattened device tree (dtb) file, the kernel
+image, and the initramfs image. To load them to their default addresses, according
+to the environment, do:
+```
+# The dtb below is the default one, but others exist
+tftpboot $fdt_addr_r linux/arch/riscv/boot/dts/jh7110-starfive-visionfive-2-wm8960.dtb
+# This command downloads the compressed image format; omit `.gz` to download the
+# uncompressed one.
+tftpboot $kernel_addr_r linux/arch/riscv/boot/Image.gz
+tftpboot $ramdisk_addr_r initramfs.cpio.gz
+```
+
+Note that you may load the files at different addresses, as long as the kernel
+is properly aligned and all the loads are in the valid (not reserved) memory.
+
+To check reserved memory information, run `bdinfo` in u-boot. Possible output:
+```
+boot_params = 0x0000000000000000
+DRAM bank   = 0x0000000000000000
+-> start    = 0x0000000040000000
+-> size     = 0x0000000200000000
+flashstart  = 0x0000000000000000
+flashsize   = 0x0000000000000000
+flashoffset = 0x0000000000000000
+baudrate    = 115200 bps
+relocaddr   = 0x00000000f7ef0000
+reloc off   = 0x00000000b7cf0000
+Build       = 64-bit
+current eth = ethernet@16030000
+ethaddr     = 6c:cf:39:00:83:a2
+IP addr     = 10.0.0.3
+fdt_blob    = 0x00000000f76d41f0
+new_fdt     = 0x00000000f76d41f0
+fdt_size    = 0x000000000000bbe0
+Video       = dc8200@29400000 active
+FB base     = 0x00000000fe000000
+FB size     = 0x0x32
+lmb_dump_all:
+ memory.cnt  = 0x1
+ memory[0]	[0x40000000-0x23fffffff], 0x200000000 bytes flags: 0
+ reserved.cnt  = 0x1
+ reserved[0]	[0x40000000-0x4005ffff], 0x00060000 bytes flags: 0
+```
+The last lines here describe the available memory and its reserved regions.
+
+<hr>
+
+Having loaded the kernel, run the following commands:
+```
+run chipa_set_linux  # TODO: what does this do?
+run cpu_vol_set  # Rase cpu voltage to the max supported value
+bootm start $loadaddr  # Necessary if the compressed kernel image was loaded
+bootm loados $loadaddr  # Necessary if the compressed kernel image was loaded
+booti $kernel_addr_r $ramdisk_addr_r:$filesize $fdt_addr_r
+```
+where in the last command the appropriate addresses and the ramdisk image size
+are provided. Note that the `filesize` environment variable is set by `tftpboot`
+to the size of the last downloaded file on every run.
+
+This boots the kernel!
+
+<hr>
+
+Note that with the vendor-flashed bootloader and with the unmodified SDK
+build, this boot successfully mounts initramfs, runs the init, which then
+crashes, leading to a kernel panic. This is because the bootloader does not
+supply proper command-line arguments to tell which partition should be mounted
+as root, so the init script fails to interpret them.
+
+The proper solution is to supply the argument properly (TODO).
+
+A straightforward solution is to update the init script, i.e., unpack
+the initramfs archive, modify the script (e.g., run a shell for manual
+intervention), and pack the initramfs again. You can then boot with the new
+initramfs as described above.
+```sh
+$ cd .../VisionFive2/work/  # Go to SDK dir /work
+$ mkdir repack-initramfs && cd repack-initramfs
+$ gunzip --keep ../initramfs.cpio.gz
+$ sudo cpio < ../initramfs.cpio --extract --make-directories  # Needs root privileges to set correct file ownerships
+$ vim init  # Modify `init`, e.g., as follows:
+# 1. After /dev is mounted, add `exec < /dev/console > /dev/console 2>&1`
+#    to ensure that stdin/stdout/stderr are through `/dev/console`, which corresponds
+#    to the primary UART interface.
+# 2. Add a line such as `/bin/sh` or `exec /bin/sh` to run the shell for manual intervention.
+$ find . | cpio -H newc --create | gzip -9 --stdout > ../initramfs.cpio.gz  # Create the new initramfs archive
+```

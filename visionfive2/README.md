@@ -132,14 +132,17 @@ Next, in the U-boot console, load the necessary files from tftp into memory.
 
 The standard way to do it is to use the [FIT file](https://docs.u-boot.org/en/v2024.04/usage/fit/source_file_format.html)
 which can be built with the SDK (`make fit`). Load it to the default address
-(stored in the `$loadaddr` environment variable) with `tftpboot $loadaddr image.fit`.
+(stored in the `$loadaddr` environment variable) with:
+```
+tftpboot $loadaddr image.fit
+```
 
 Alternatively, you may separately load the flattened device tree (dtb) file, the kernel
 image, and the initramfs image. To load them to their default addresses, according
 to the environment, do:
 ```
 # The dtb below is the default one, but others exist
-tftpboot $fdt_addr_r linux/arch/riscv/boot/dts/jh7110-starfive-visionfive-2-wm8960.dtb
+tftpboot $fdt_addr_r linux/arch/riscv/boot/dts/starfive/jh7110-starfive-visionfive-2-wm8960.dtb
 # This command downloads the compressed image format; omit `.gz` to download the
 # uncompressed one.
 tftpboot $kernel_addr_r linux/arch/riscv/boot/Image.gz
@@ -183,10 +186,15 @@ The last lines here describe the available memory and its reserved regions.
 
 Having loaded the kernel, run the following commands:
 ```
-run chipa_set_linux  # TODO: what does this do?
-run cpu_vol_set  # Rase cpu voltage to the max supported value
-bootm start $loadaddr  # Necessary if the compressed kernel image was loaded
-bootm loados $loadaddr  # Necessary if the compressed kernel image was loaded
+# (only if you loaded image.fit) Load/move stuff from image.fit
+bootm start $loadaddr  # You may omit `$loadaddr`
+# (only if you loaded image.fit) Prepare kernel (e.g., uncompress)
+bootm loados $loadaddr  # You may omit `$loadaddr`
+# Configure FDT address and memory + visionfive-specific stuff
+run chipa_set_linux
+# Set appropriate CPU voltage value as an FDT property
+run cpu_vol_set
+# Boot!
 booti $kernel_addr_r $ramdisk_addr_r:$filesize $fdt_addr_r
 ```
 where in the last command the appropriate addresses and the ramdisk image size

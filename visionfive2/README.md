@@ -194,6 +194,11 @@ bootm loados $loadaddr  # You may omit `$loadaddr`
 run chipa_set_linux
 # Set appropriate CPU voltage value as an FDT property
 run cpu_vol_set
+# Specify the partition to be used as root when linux boots.
+# E.g., if using an SD card with SDK image or a pre-built distro image:
+setenv sdev_blk mmcblk${devnum}p${rootpart}
+# Add the root partition to the kernel cmd-line args
+setenv bootargs $bootargs root=/dev/$sdev_blk
 # Boot!
 booti $kernel_addr_r $ramdisk_addr_r:$filesize $fdt_addr_r
 ```
@@ -203,25 +208,16 @@ to the size of the last downloaded file on every run.
 
 This boots the kernel!
 
-<hr>
+## Patching initramfs
 
-Note that with the vendor-flashed bootloader and with the unmodified SDK
-build, this boot successfully mounts initramfs, runs the init, which then
-crashes, leading to a kernel panic. This is because the bootloader does not
-supply proper command-line arguments to tell which partition should be mounted
-as root, so the init script fails to interpret them.
+To make a quick patch to initramfs (e.g., the init script), perform the following steps:
 
-The proper solution is to supply the argument properly (TODO).
-
-A straightforward solution is to update the init script, i.e., unpack
-the initramfs archive, modify the script (e.g., run a shell for manual
-intervention), and pack the initramfs again. You can then boot with the new
-initramfs as described above.
 ```sh
 $ cd .../VisionFive2/work/  # Go to SDK dir /work
 $ mkdir repack-initramfs && cd repack-initramfs
 $ gunzip --keep ../initramfs.cpio.gz
 $ sudo cpio < ../initramfs.cpio --extract --make-directories  # Needs root privileges to set correct file ownerships
+$ # Modify files however you want. E.g., if you want to get a shell early in the init process:
 $ vim init  # Modify `init`, e.g., as follows:
 # 1. After /dev is mounted, add `exec < /dev/console > /dev/console 2>&1`
 #    to ensure that stdin/stdout/stderr are through `/dev/console`, which corresponds
@@ -229,3 +225,7 @@ $ vim init  # Modify `init`, e.g., as follows:
 # 2. Add a line such as `/bin/sh` or `exec /bin/sh` to run the shell for manual intervention.
 $ find . | cpio -H newc --create | gzip -9 --stdout > ../initramfs.cpio.gz  # Create the new initramfs archive
 ```
+
+The file `initramfs.cpio.gz` now contains your patched initramfs, which you can load
+following the steps described before. Note that `image.fit` was not updated, so loading
+the initramfs file directly is necessary (see the instructions above).

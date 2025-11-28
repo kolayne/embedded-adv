@@ -221,6 +221,16 @@ to the size of the last downloaded file on every run.
 
 This boots the kernel!
 
+### Wlan driver
+
+There is an ESWIN wlan adapter that comes with the board. Its driver will not
+load automatically in the system built from the SDK (unlike the pre-built distro image).
+To be able to use the wlan adapter, when the system boots, run (as root):
+```sh
+$ insmod /lib/modules/5.15.0/kernel/drivers/net/wireless/eswin/wlan_ecr6600u_usb.ko
+```
+(the kernel version or the path to the exact path to the driver may change in the future)
+
 ## Patching initramfs
 
 To make a quick patch to initramfs (e.g., the init script), perform the following steps:

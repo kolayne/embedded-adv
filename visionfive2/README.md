@@ -47,9 +47,22 @@ cd VisionFive2/
 make -j"$(nproc)"
 ```
 
-The image with OpenSBI and the u-boot bootloader is built, and can then be flashed
-to the SD-card. If using the pre-built distro or an image built with this SDK, the
-image should be written to partition 2.
+With the above, a bunch of things are built, including OpenSBI and U-Boot. They can
+be flashed on an SDK. If you already have the pre-built distro or an image build with
+this SDK on the SD card, the bootloader image can be written to partition 2, e.g.
+(specify correct path and device number):
+```sh
+dd if=.../VisionFive2/work/visionfive2_fw_payload.img of=/dev/mmcblkN2 \
+  iflag=fullblock conv=notrunc,fsync oflag=direct status=progress bs=16M
+```
+
+To build the whole image, make the `sdimg` target (i.e., `make sdimg -j"$(nproc)"`),
+which will create the `sdcard.img` file. Flash it onto your SD card, e.g. (specify
+correct path and device number):
+```sh
+dd if=.../VisionFive2/work/sdcard.img of=/dev/mmcblkN \
+  iflag=fullblock conv=notrunc,fsync oflag=direct status=progress bs=16M
+```
 
 ## Running custom bare-metal code instead of the bootloader
 

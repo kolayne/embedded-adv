@@ -1,6 +1,6 @@
 # Embedded-adv
 
-Code for my toy IoT projects.
+Code and documentation that are a result of my experiments with embedded devices.
 
 ## How to use
 

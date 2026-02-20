@@ -1,7 +1,48 @@
-# Visionfive2
+# Experiments with the Visionfive2 board
 
-This file documents set up of the experiments that I performed
-while playing around with StarFive VisionFive 2.
+## Context and miscellaneous info
+
+### What is this document?
+
+Here I document how to do various things with the StarFive VisionFive 2 board.
+Subtitles in this README are actions you might want to perform, and the sections
+describe how to do it.
+
+I wrote this with the primary goal to just document my experiments, so that it's
+stored somewhere or in case I need it in the future. But maybe you can find something
+useful here too.
+
+This text complements the official documentation but, unfortunately, cannot include
+information from it for licensing reasons.
+
+### Boot mode
+
+You can select the boot mode according to the
+[documentation](https://doc-en.rvspace.org/VisionFive2/Quick_Start_Guide/VisionFive2_SDK_QSG/boot_mode_settings.html).
+
+Most of the document below uses the SDIO boot mode.
+
+### Communicating with the board
+
+The most low-level communication interface supported by the board is UART. One way to
+communicate with it is to turn your computer into a UART terminal with a UART-USB adaptor
+(a cheap piece of hardware, which is not included with the board).
+
+Connect your UART-enabled device to the board according to the
+[pinout diagram](https://doc-en.rvspace.org/VisionFive2/Quick_Start_Guide/VisionFive2_QSG/pinout_diagram%20-%20vf2.html)
+or as demonstrated in the
+[Recovering the Bootloader](https://doc-en.rvspace.org/VisionFive2/Quick_Start_Guide/VisionFive2_SDK_QSG/recovering_bootloader%20-%20vf2.html)
+section.
+
+To communicate with the board from a Linux device (e.g., when connected with an adapter),
+use a utility such as `cu` (e.g., the `cu` package on Ubuntu or `uucp` on Arch Linux).
+Configure appropriate permissions (add the current user to the group that owns the
+corresponding device on `/dev/`) and launch the command, e.g.:
+```sh
+$ cu --line /dev/ttyUSB0 -s 115200
+```
+
+(use the appropriate baud rate, it is 115200 for my board)
 
 ## Using a pre-built distro
 

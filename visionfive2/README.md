@@ -44,7 +44,7 @@ $ cu --line /dev/ttyUSB0 -s 115200
 
 (use the appropriate baud rate, it is 115200 for my board)
 
-## Using a pre-built distro
+## Booting the board with a pre-built distro
 
 Download a pre-built image from [debian.starfivetech.com](https://debian.starfivetech.com/).
 Follow instructions of the official
@@ -91,7 +91,7 @@ make -j"$(nproc)"
 With the above, a bunch of things are built, including OpenSBI and U-Boot. They can
 be flashed on an SDK. If you already have the pre-built distro or an image build with
 this SDK on the SD card, the bootloader image can be written to partition 2, e.g.
-(specify correct path and device number):
+(specify correct path and device number!):
 ```sh
 dd if=.../VisionFive2/work/visionfive2_fw_payload.img of=/dev/mmcblkN2 \
   iflag=fullblock conv=notrunc,fsync oflag=direct status=progress bs=16M
@@ -270,7 +270,7 @@ To be able to use the wlan adapter, when the system boots, run (as root):
 ```sh
 $ insmod /lib/modules/5.15.0/kernel/drivers/net/wireless/eswin/wlan_ecr6600u_usb.ko
 ```
-(the kernel version or the path to the exact path to the driver may change in the future)
+(the kernel version or the exact path to the driver may change in the future)
 
 ## Patching initramfs
 

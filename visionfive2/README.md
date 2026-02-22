@@ -32,7 +32,7 @@ Connect your UART-enabled device to the board according to the
 [pinout diagram](https://doc-en.rvspace.org/VisionFive2/Quick_Start_Guide/VisionFive2_QSG/pinout_diagram%20-%20vf2.html)
 or as demonstrated in the
 [Recovering the Bootloader](https://doc-en.rvspace.org/VisionFive2/Quick_Start_Guide/VisionFive2_SDK_QSG/recovering_bootloader%20-%20vf2.html)
-section.
+section of the official documentation.
 
 To communicate with the board from a Linux device (e.g., when connected with an adapter),
 use a utility such as `cu` (e.g., the `cu` package on Ubuntu or `uucp` on Arch Linux).
@@ -109,10 +109,10 @@ dd if=.../VisionFive2/work/sdcard.img of=/dev/mmcblkN \
 
 Having built the SDK, perform the following steps (hello_world_bare.S is used as an example).
 
-Step 0. Using the SDK and the docker container, build the image as usual with `make`
+**Step 0**. Using the SDK and the docker container, build the image as usual with `make`
 (in fact, `make uboot` is sufficient).
 
-Step 1. Build a static executable that will be your binary:
+**Step 1**. Build a static executable that will be your binary:
 
 ```sh
 $ # 1.1. Compile the object file:
@@ -121,7 +121,7 @@ $ # 1.2. Link a static executable
 $ VisionFive2/work/buildroot_initramfs/host/bin/riscv64-buildroot-linux-gnu-ld --no-dynamic-linker -static -nostdlib -o hello_world_bare -s hello_world_bare.o
 ```
 
-Step 2. Slip our executable into the build process and have it build the image.
+**Step 2**. Slip our executable into the build process and have it build the image.
 
 ```sh
 $ # 2. Copy your executable to replace the u-boot binary file.
@@ -130,13 +130,20 @@ $ #    The command below is based on a command that is run in the `u-boot` build
 $ VisionFive2/work/buildroot_initramfs/host/bin/riscv64-linux-objcopy --gap-fill=0xff -O binary hello_world_bare VisionFive2/work/u-boot/u-boot.bin
 ```
 
-Step 3. Finally, go back to the SDK container and build the image (`make -j$(nproc)`).
+**Step 3**. Finally, go back to the SDK container and build the image (`make -j$(nproc)`).
+
+---
 
 Verify the success injection of your code into the image by running (in `VisionFive2/`):
 ```sh
 $ strings work/visionfive2_fw_payload.img | grep Hello
 # Should display the string containing 'Hello' from your executable
 ```
+
+You may now boot the board with this image using one of the methods described in
+sections above or below.
+
+> [~~And as above so below...~~](https://youtu.be/JwtEOp7pC1A)
 
 ## Booting via Ethernet
 

@@ -293,3 +293,122 @@ $ find . | cpio -H newc --create | gzip -9 --stdout > ../initramfs.cpio.gz  # Cr
 The file `initramfs.cpio.gz` now contains your patched initramfs, which you can load
 following the steps described before. Note that `image.fit` was not updated, so loading
 the initramfs file directly is necessary (see the instructions above).
+
+## Updating the board's flash memory
+
+Flashing bootloaders onto the board's built-in memory (flash).
+
+### Preparation
+
+Unlike other boot modes of the board, the UART boot mode does not read the bootloader
+from any storage, but reads it right from the UART, expecting it to be transferred
+via the XMODEM protocol. The temporary bootloader is received and executed without being
+stored anywhere.
+
+In this section, we use the UART boot mode and the official recovery tool, which acts
+as a one-time bootloader, to update the contents of flash. The (closed-source) recovery
+tool is provided in the
+[official GitHub repository](https://github.com/starfive-tech/Tools/blob/master/recovery/).
+You should probably use the latest version. Be careful, though: if your board is not
+"devkits", presumably, you should use the regular "-recovery-" rather than
+"-devkits-recovery-".
+
+---
+
+To perform the steps below, you will need to send files via the XMODEM protocol a few times.
+You can do this by using `cu` along with an external XMODEM sending utility (called `sx`
+in some distributions). For Arch Linux I used the `lrzsz-sx` utility from the `lrzsz` package.
+Alternatively, a tool such as `minicom` may be used, which combines the functionalities
+provided by `cu` and `sx`.
+
+When you're in `cu` and the other end is continuously sending the `C` character, it indicates
+that it is ready for the transfer. To send a file, press Enter (to make sure that, from the
+`cu`'s perspective, you are at a new line) and type (ignore the `C`s that keep appearing
+as you type):
+```
+~+ lrzsz-sx -X -vv path/to/file
+```
+where:
+
+-   `~` is the default escape sequence of `cu`, allowing you to give a command to `cu`,
+    rather than sending the typed text via the connection;
+
+-   `+` means "run the following command, connecting both its stdin and stdout to the
+    channel" (see the cu(1) manual page for details) (note that XMODEM requires
+    bidirectional communication);
+
+-   `lrzsz-sx` is the name of your XMODEM sending tool (if you are using a different
+    one, check out its `--help` or manual page, since it may provide different options!);
+
+-   `-X` to ensure that XMODEM is used (rather than Y/ZMODEM). Despite the `x`
+    in the name `sx`, the tool may default to a different protocol;
+
+-   `-vv` (optional) very verbose output, includes the file submission progress;
+
+-   `path/to/file` the file that you want to send. Note: the command after `~+` is launched
+    via a shell, so watch out for characters in the path that need to be escaped.
+    You may also use globbing.
+
+### Steps
+
+To update the bootloaders stored in flash, perform the following steps.
+
+**Step 0**. Connect to UART via `cu`
+(see section [Communicating with the board](#communicating-with-the-board)).
+
+**Step 1**. Boot the board in the UART boot mode (see section [Boot mode](#boot-mode)).
+If booted correctly, you should see the `C` characters appearing repeatedly
+on the UART connection.
+
+**Step 2**. Send the official recovery image via XMODEM, as described above.
+<br>
+Note: if you are having trouble with transmission via XMODEM, the discussion from
+[starfive-tech/VisionFive2#13](https://github.com/starfive-tech/VisionFive2/issues/13)
+might help.
+
+**Step 3**. Once the transfer is complete, the board loads and runs it. The output might
+look something like:
+
+```
+JH7110 secondboot version: 230322-c514da9
+CPU freq: 1250MHz
+idcode: 0x1860C8
+ddr 0x00000000, 4M test
+ddr 0x00400000, 8M test
+DDR clk 2133M, size 8GB
+
+*********************************************************
+****************** JH7110 program tool ******************
+*********************************************************
+0: update 2ndboot/SPL in flash
+1: update 2ndboot/SPL in emmc
+2: update fw_verif/uboot in flash
+3: update fw_verif/uboot in emmc
+4: update otp, caution!!!!
+5: exit
+NOTE: current xmodem receive buff = 0x40000000, 'load 0x********' to change.
+select the function to test: 
+```
+
+Select 0 if you want to update the SPL (Secondary Program Loader),
+an early bootloader that loads U-Boot (you can learn more about U-Boot booting
+stages in its [documentation](https://docs.u-boot.org/en/stable/usage/spl_boot.html)).
+This corresponds to file `VisionFive2/work/u-boot-spl.bin.normal.out` in the built SDK.
+
+Select 2 if you want to update the main binary (U-Boot and OpenSBI).
+This corresponds to file `VisionFive2/work/visionfive2_fw_payload.img` in the built SDK.
+Note that you may also upload your modified bootloader with your custom bare-metal code,
+as described in section
+[Running custom bare-metal code instead of the bootloader](#running-custom-bare-metal-code-instead-of-the-bootloader).
+
+As for other options, I never tried updating otp and did not have success with
+updating partitions in eMMC.
+
+**Step 4**. After selecting the partition to update, send the corresponding file via XMODEM.
+
+**Step 5**. After the file transfer is complete, wait for the tool to write the file
+to the corresponding partition. It will then report success and display the prompt again.
+
+---
+
+You may now switch to the flash boot mode and reboot the board.

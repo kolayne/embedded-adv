@@ -301,62 +301,112 @@ The file `initramfs.cpio.gz` now contains your patched initramfs, which you can 
 following the steps described before. Note that `image.fit` was not updated, so loading
 the initramfs file directly is necessary (see the instructions above).
 
+## Boot the system via UART
+
+### What is UART boot
+
+Unlike other boot modes of the board, the UART boot mode does not read the bootloader
+from any storage, but reads it right from the UART, expecting it to be transferred
+via the XMODEM or YMODEM protocol. The received data is used as a temporary bootloader,
+which is just executed without being stored permanently.
+
+### How to send via X/Y/ZMODEM
+
+To perform the boot, you will need to send files via the XMODEM and YMODEM protocols
+a few times. You can do this by using `cu` along with an external XMODEM sending utility
+(called `sx` in some distributions). For Arch Linux I used the `lrzsz-sx` utility from the
+`lrzsz` package. You may use alternative tools, such as `minicom` (which, however, also
+relies on external tools for X/Y/ZMODEM implementations).
+
+When you're in `cu` and the other end is continuously sending the `C` character, it indicates
+that it is ready for the transfer. To send a file, press Enter (to make sure that, from the
+`cu`'s perspective, you are at a new line) and type a command such as the following
+(ignore the `C`s that keep appearing as you type):
+```shell
+~+ lrzsz-sx --xmodem -vv path/to/file
+```
+where (meaning of options depends on the tool! the following is for lrzsz):
+
+-   `~` is the default escape sequence of `cu`, allowing you to give a command to `cu`,
+    rather than sending the typed text via the connection;
+
+-   `+` means "run the following command, connecting both its stdin and stdout to the
+    channel" (see the cu(1) manual page for details) (note that X/Y/ZMODEM require
+    bidirectional communication to send one file in one direction);
+
+-   `lrzsz-sx` is the name of your XMODEM sending tool (if you are using a different
+    one, check out its `--help` or manual page, since it may provide different options!);
+
+-   `--xmodem` to use XMODEM; `--ymodem` to use YMODEM. The tool is supposed to guess
+    the protocol to be used based on the name you launch it with (e.g., lrzsz-s**x**) but,
+    depending on your packager, it might not work right, and this feature is broken on
+    Arch Linux, as of writing;
+
+-   `-vv` (optional) regulates output verbosity, to see submission progress, put `-vv` in
+    xmodem mode and `-vvv` in ymodem mode;
+
+-   `path/to/file` the file that you want to send. Note: cu launches the command after `~+`
+    via a shell, so watch out for characters in the path that need to be escaped.
+    You may also use globbing.
+
+Note: if you are having trouble with transmission via XMODEM, the discussion at
+[starfive-tech/VisionFive2#13](https://github.com/starfive-tech/VisionFive2/issues/13)
+might help.
+
+## Steps
+
+To boot the board via UART, perform the following.
+
+**Step 0**. Connect to UART via `cu`
+(see section [Communicating with the board](#communicating-with-the-board)).
+
+**Step 1**. Boot the board in the UART boot mode (see section [Boot mode](#boot-mode)).
+If booted correctly, you should see the `C` characters appearing repeatedly
+on the UART connection.
+
+**Step 2**. Send (as described above) the U-Boot SPL (Secondary Program Loader),
+which is a small early bootloader that is used to load the main part of U-Boot
+(you can learn more about U-Boot booting stages in its
+[documentation](https://docs.u-boot.org/en/stable/usage/spl_boot.html)).
+<br>
+This corresponds to file `VisionFive2/work/u-boot-spl.bin.normal.out` in the built SDK.
+<br>
+Should be sent via XMODEM, although YMODEM works too in this stage for this file
+(but not for all files - apparently, YMODEM is partially by the board's firmware).
+
+**Step 3**. Once the upload is done, the board starts executing the SPL: it wants the following
+u-boot binary, and will be ready to accept, which is indicated by `C` characters
+starting to appear again. Then, send the OpenSBI+U-Boot image
+<br>
+It corresponds to the `VisionFive2/work/visionfive2_fw_payload.img` file in the built SDK.
+<br>
+Must be sent via YMODEM. A transfer via XMODEM succeeds, but then, surprisingly enough,
+SPL fails to boot the received file. This behavior is consistent, and I have ensured that
+it is not a transfer issue, since checksums are checked by the receiver. I see no explanation
+for this other than a bug in SPL.
+
+---
+
+After the upload is complete, the board should proceed by printing the OpenSBI header
+and bring up U-Boot console (attempts autoboot by default, unless a key is pressed...
+but autoboot does not succeed in the UART mode).
+
+**TODO:** Suggest steps to perform in U-Boot console
+
+**TODO:** Can we directly upload `image.fit` (most likely, via YMODEM)?
+
 ## Updating the board's flash memory
 
 Flashing bootloaders onto the board's built-in memory (flash).
 
-### Preparation
-
-Unlike other boot modes of the board, the UART boot mode does not read the bootloader
-from any storage, but reads it right from the UART, expecting it to be transferred
-via the XMODEM protocol. The temporary bootloader is received and executed without being
-stored anywhere.
-
-In this section, we use the UART boot mode and the official recovery tool, which acts
+In this section, we use the UART boot mode (see the previous section)
+but instead of U-Boot we boot the official recovery tool, which acts
 as a one-time bootloader, to update the contents of flash. The (closed-source) recovery
 tool is provided in the
 [official GitHub repository](https://github.com/starfive-tech/Tools/blob/master/recovery/).
 You should probably use the latest version. Be careful, though: if your board is not
 "devkits", presumably, you should use the regular "-recovery-" rather than
 "-devkits-recovery-".
-
----
-
-To perform the steps below, you will need to send files via the XMODEM protocol a few times.
-You can do this by using `cu` along with an external XMODEM sending utility (called `sx`
-in some distributions). For Arch Linux I used the `lrzsz-sx` utility from the `lrzsz` package.
-Alternatively, a tool such as `minicom` may be used, which combines the functionalities
-provided by `cu` and `sx`.
-
-When you're in `cu` and the other end is continuously sending the `C` character, it indicates
-that it is ready for the transfer. To send a file, press Enter (to make sure that, from the
-`cu`'s perspective, you are at a new line) and type (ignore the `C`s that keep appearing
-as you type):
-```
-~+ lrzsz-sx -X -vv path/to/file
-```
-where:
-
--   `~` is the default escape sequence of `cu`, allowing you to give a command to `cu`,
-    rather than sending the typed text via the connection;
-
--   `+` means "run the following command, connecting both its stdin and stdout to the
-    channel" (see the cu(1) manual page for details) (note that XMODEM requires
-    bidirectional communication);
-
--   `lrzsz-sx` is the name of your XMODEM sending tool (if you are using a different
-    one, check out its `--help` or manual page, since it may provide different options!);
-
--   `-X` to ensure that XMODEM is used (rather than Y/ZMODEM). Despite the `x`
-    in the name `sx`, the tool may default to a different protocol;
-
--   `-vv` (optional) very verbose output, includes the file submission progress;
-
--   `path/to/file` the file that you want to send. Note: the command after `~+` is launched
-    via a shell, so watch out for characters in the path that need to be escaped.
-    You may also use globbing.
-
-### Steps
 
 To update the bootloaders stored in flash, perform the following steps.
 
@@ -368,8 +418,9 @@ If booted correctly, you should see the `C` characters appearing repeatedly
 on the UART connection.
 
 **Step 2**. Send the official recovery image via XMODEM, as described above.
+Sending via YMODEM fails with transfer errors.
 <br>
-Note: if you are having trouble with transmission via XMODEM, the discussion from
+Note: if you are having trouble with transmission via XMODEM, the discussion at
 [starfive-tech/VisionFive2#13](https://github.com/starfive-tech/VisionFive2/issues/13)
 might help.
 
@@ -412,6 +463,7 @@ As for other options, I never tried updating otp and did not have success with
 updating partitions in eMMC.
 
 **Step 4**. After selecting the partition to update, send the corresponding file via XMODEM.
+YMODEM is not supported (the transfer will not begin).
 
 **Step 5**. After the file transfer is complete, wait for the tool to write the file
 to the corresponding partition. It will then report success and display the prompt again.

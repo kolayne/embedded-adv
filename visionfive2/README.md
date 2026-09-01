@@ -471,3 +471,13 @@ to the corresponding partition. It will then report success and display the prom
 ---
 
 You may now switch to the flash boot mode and reboot the board.
+
+<!--
+А что, после того, как я сделал эти шаги выше, я теперь могу загрузиться из режима flash?
+
+## Change autoboot script
+
+## Compile wifi driver module into the kernel
+
+## Boot grub and Fedora
+-->
